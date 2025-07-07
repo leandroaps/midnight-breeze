@@ -2,7 +2,7 @@
   "name": "vscode-theme-midnight-breeze",
   "displayName": "Midnight Breeze",
   "description": "Midnight Breeze é um tema escuro elegante para o Visual Studio Code, com uma paleta suave e contrastes equilibrados que reduzem o cansaço visual durante longas sessões de programação.",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "publisher": "leandroaps",
   "icon": "icon.png",
   "engines": {
@@ -32,10 +32,13 @@
   ],
   "author": "Leandro Aparecido de Siqueira",
   "license": "MIT",
-  "files": [
-    "themes"
-  ],
   "scripts": {
-    "prepublish": "vsce package"
+    "build": "vsce package",
+    "publish": "vsce publish",
+    "prepublish": "vsce package",
+    "version": "vsce package && git add *.vsix"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^2.22.0"
   }
 }

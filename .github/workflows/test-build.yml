@@ -1,0 +1,39 @@
+name: Test Build
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install -g @vscode/vsce
+          npm install
+
+      - name: Validate package.json
+        run: vsce ls
+
+      - name: Package extension
+        run: vsce package
+
+      - name: Upload VSIX as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-build-vsix
+          path: '*.vsix'
+          retention-days: 7

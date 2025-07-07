@@ -15,3 +15,7 @@
 ## Major
 
 - released initial package
+
+### 2.0.0
+
+- add new colors to the theme
