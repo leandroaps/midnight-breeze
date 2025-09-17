@@ -1,4 +1,4 @@
-name: Publish VSCode Extension
+name: Publish VS Code Extension
 
 on:
   push:
@@ -14,7 +14,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,49 +30,116 @@ jobs:
           npm install -g @vscode/vsce
           npm install
 
+      - name: Validate VSCE_PAT token
+        run: |
+          if [ -z "${{ secrets.VSCE_PAT }}" ]; then
+            echo "❌ VSCE_PAT secret is not set"
+            exit 1
+          fi
+          echo "✅ VSCE_PAT secret is configured"
+
+      - name: Validate publisher configuration
+        run: |
+          PUBLISHER=$(node -p "require('./package.json').publisher")
+          if [ -z "$PUBLISHER" ]; then
+            echo "❌ Publisher not found in package.json"
+            exit 1
+          fi
+          echo "✅ Publisher: $PUBLISHER"
+
       - name: Update version (manual trigger)
         if: github.event_name == 'workflow_dispatch'
         run: |
           npm version ${{ github.event.inputs.version }} --no-git-tag-version
+          echo "Updated version to ${{ github.event.inputs.version }}"
+
+      - name: Get version info
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version to publish: $VERSION"
+
+      - name: Validate package.json
+        run: |
+          echo "📋 Validating package.json..."
+          vsce ls
 
       - name: Package extension
-        run: vsce package
+        run: |
+          echo "📦 Packaging extension..."
+          vsce package
+          
+          # List generated VSIX files
+          echo "Generated VSIX files:"
+          ls -la *.vsix
 
-      - name: Publish to VS Code Marketplace
-        run: vsce publish -p ${{ secrets.VSCE_PAT }}
+      - name: Test VSCE authentication
+        run: |
+          echo "🔐 Testing VSCE authentication..."
+          vsce verify-pat ${{ secrets.VSCE_PAT }}
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to VS Code Marketplace
+        run: |
+          echo "🚀 Publishing to VS Code Marketplace..."
+          vsce publish --pat ${{ secrets.VSCE_PAT }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Get VSIX filename
+        id: vsix
+        run: |
+          VSIX_FILE=$(ls *.vsix | head -n 1)
+          echo "filename=$VSIX_FILE" >> $GITHUB_OUTPUT
+          echo "VSIX file: $VSIX_FILE"
 
       - name: Upload VSIX as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vsix-package
+          name: vsix-package-${{ steps.version.outputs.version }}
           path: '*.vsix'
+          retention-days: 30
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           body: |
-            ## Changes in this Release
-            - Theme improvements and bug fixes
-
-            ## Installation
-            You can install this theme directly from the VS Code Marketplace or download the VSIX file from the assets below.
+            ## 🌙 Midnight Breeze Theme - Release ${{ github.ref_name }}
+            
+            ### ✨ What's New
+            - Theme improvements and refinements
+            - Enhanced color palette and contrast
+            - Bug fixes and optimizations
+            
+            ### 📦 Installation
+            
+            **Option 1: VS Code Marketplace (Recommended)**
+            1. Open VS Code
+            2. Go to Extensions (Ctrl+Shift+X)
+            3. Search for "Midnight Breeze"
+            4. Click Install
+            
+            **Option 2: Manual Installation**
+            1. Download the `.vsix` file from the assets below
+            2. Open VS Code
+            3. Press `Ctrl+Shift+P` and type "Extensions: Install from VSIX"
+            4. Select the downloaded file
+            
+            ### 🔗 Links
+            - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=leandroaps.vscode-theme-midnight-breeze)
+            - [GitHub Repository](https://github.com/leandroaps/midnight-breeze)
+          files: |
+            *.vsix
           draft: false
           prerelease: false
-
-      - name: Upload VSIX to Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./vscode-theme-midnight-breeze-${{ github.ref_name }}.vsix
-          asset_name: vscode-theme-midnight-breeze-${{ github.ref_name }}.vsix
-          asset_content_type: application/zip

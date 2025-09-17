@@ -27,3 +27,9 @@
 ### 3.0.1
 
 - adjusts the file
+
+### 4.0.0
+
+- adds new icon
+- adds missing entries
+- adjust package size
