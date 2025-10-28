@@ -467,7 +467,45 @@
     "terminal.tab.activeBorder": "#FFCC00",
     "terminalCommandDecoration.defaultBackground": "#3A3E5C40",
     "terminalCommandDecoration.successBackground": "#C3E88D40",
-    "terminalCommandDecoration.errorBackground": "#FF537040"
+    "terminalCommandDecoration.errorBackground": "#FF537040",
+
+    "banner.background": "#FF9D0020",
+    "banner.foreground": "#D6DEEB",
+    "banner.iconForeground": "#FF9D00",
+
+    "commandCenter.foreground": "#A6ACCD",
+    "commandCenter.activeForeground": "#FFFFFF",
+    "commandCenter.background": "#151720",
+    "commandCenter.activeBackground": "#2A2E40",
+    "commandCenter.border": "#3A3E5C",
+    "commandCenter.inactiveForeground": "#666B8A",
+    "commandCenter.inactiveBorder": "#2A2E40",
+    "commandCenter.activeBorder": "#FFCC00",
+
+    "editorStickyScroll.shadow": "#00000050",
+
+    "inlineChat.background": "#151720",
+    "inlineChat.border": "#3A3E5C",
+    "inlineChat.shadow": "#00000050",
+
+    "editorCommentsWidget.resolvedBorder": "#C3E88D",
+    "editorCommentsWidget.unresolvedBorder": "#FF9D00",
+
+    "multiDiffEditor.headerBackground": "#151720",
+    "multiDiffEditor.border": "#2A2E40",
+
+    "interactive.activeCodeBorder": "#FFCC00",
+    "interactive.inactiveCodeBorder": "#3A3E5C",
+
+    "profileBadge.background": "#FF9D00",
+    "profileBadge.foreground": "#000000",
+
+    "list.deemphasizedForeground": "#666B8A",
+    "list.invalidItemForeground": "#FF5370",
+    "list.errorForeground": "#FF5370",
+    "list.warningForeground": "#FFCC00",
+    "list.filterMatchBackground": "#3C4C6C40",
+    "list.filterMatchBorder": "#FFCC00"
   },
   "tokenColors": [
     {

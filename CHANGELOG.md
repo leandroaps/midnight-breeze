@@ -33,3 +33,9 @@
 - adds new icon
 - adds missing entries
 - adjust package size
+
+### 4.2.0
+
+- updates vsce
+- adds new entries
+- updates .gitignore
