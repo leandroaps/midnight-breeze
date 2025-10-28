@@ -48,7 +48,7 @@ jobs:
             exit 1
           fi
           echo "✅ Theme file exists: $THEME_FILE"
-          
+
           # Validate JSON syntax
           if ! node -e "JSON.parse(require('fs').readFileSync('$THEME_FILE', 'utf8'))"; then
             echo "❌ Invalid JSON in theme file"
@@ -60,7 +60,7 @@ jobs:
         run: |
           echo "📦 Packaging extension..."
           vsce package
-          
+
           # List generated VSIX files
           echo "Generated VSIX files:"
           ls -la *.vsix
