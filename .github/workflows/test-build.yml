@@ -1,4 +1,4 @@
-name: Test Build
+name: Building and Testing Extension Package
 
 on:
   push:
