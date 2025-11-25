@@ -56,4 +56,5 @@ The theme uses a carefully crafted color palette designed for optimal readabilit
 ## Buy Me a Coffee
 https://buymeacoffee.com/leandroaps
 
-<img width="700" height="700" alt="qr-code" src="https://github.com/user-attachments/assets/edf70049-d126-4472-a589-586423d91947" />
+<img width="70" height="70" alt="qr-code" src="https://github.com/user-attachments/assets/edf70049-d126-4472-a589-586423d91947" />
+
