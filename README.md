@@ -52,3 +52,10 @@ The theme uses a carefully crafted color palette designed for optimal readabilit
 2. Go to Extensions (Ctrl+Shift+X)
 3. Search for "Midnight Breeze"
 4. Click Install
+
+## Buy Me a Coffee :coffee:
+https://buymeacoffee.com/leandroaps
+
+<img width="120" height="120" alt="Buy Me a Coffee" src="https://github.com/user-attachments/assets/edf70049-d126-4472-a589-586423d91947" />
+
+
