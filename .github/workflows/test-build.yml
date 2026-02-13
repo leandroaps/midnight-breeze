@@ -87,9 +87,3 @@ jobs:
           echo "- Version: $(node -p 'require(\"./package.json\").version')"
           echo "- Theme: $(node -p 'require(\"./package.json\").contributes.themes[0].label')"
           echo "- VSIX: $(ls *.vsix)"
-
-  trigger-publish:
-    needs: test-build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    uses: ./.github/workflows/publish.yml
-    secrets: inherit
