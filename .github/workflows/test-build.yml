@@ -21,9 +21,10 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm install -g @vscode/vsce
-          npm install
+        run: npm ci
+
+      - name: Install vsce globally
+        run: npm install -g @vscode/vsce
 
       - name: Validate publisher configuration
         run: |
