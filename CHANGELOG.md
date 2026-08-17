@@ -78,7 +78,7 @@
 - enhances theme colors and styles
 - fixes build issues
 
-### 4.7.1
+### 5.0.0
 
 #### Semantic highlighting
 

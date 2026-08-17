@@ -1,7 +1,10 @@
+.claude/**
+.github/**
+.gitignore
+.vscode/**
+node_modules/**
+helpers/**
+package-lock.json
 *.vsix
 *.js
-node_modules
-helpers
-.github
-.gitignore
-package.json
+*.log

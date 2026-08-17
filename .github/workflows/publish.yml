@@ -2,34 +2,190 @@ name: Publish to VS Code Marketplace
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Package and validate only, without publishing"
+        type: boolean
+        default: false
+
+# Needed to push the version tag and create the GitHub Release.
+permissions:
+  contents: write
+
+# Never let two publishes race each other.
+concurrency:
+  group: publish-marketplace
+  cancel-in-progress: false
+
+env:
+  EXTENSION_ID: leandroaps.vscode-theme-midnight-breeze
 
 jobs:
   publish:
+    name: Publish
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "24"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Install vsce globally
-        run: npm install -g @vscode/vsce
+      - name: Resolve version
+        id: meta
+        run: |
+          set -euo pipefail
+          NAME="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "vsix=$NAME-$VERSION.vsix" >> "$GITHUB_OUTPUT"
+          echo "📦 $NAME version $VERSION"
 
-      - name: Package extension
-        run: npm run build
+      # A tag that disagrees with package.json would publish the wrong version.
+      - name: Validate tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$TAG_VERSION" != "${{ steps.meta.outputs.version }}" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version ${{ steps.meta.outputs.version }}. Bump package.json or retag."
+            exit 1
+          fi
+          echo "✅ Tag $GITHUB_REF_NAME matches package.json"
 
-      - name: Publish to VS Code Marketplace
-        run: npm run publish
+      # Both triggers can fire for the same release (commit + tag pushed
+      # together), so the marketplace is the source of truth for what is done.
+      - name: Check whether this version is already published
+        id: check
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -uo pipefail
+          if npx vsce show "$EXTENSION_ID" --json > "$RUNNER_TEMP/marketplace.json" 2>"$RUNNER_TEMP/marketplace.err"; then
+            if node -e 'const p=process.env.RUNNER_TEMP+"/marketplace.json";
+                        const versions=require(p).versions.map(v=>v.version);
+                        process.exit(versions.includes(process.env.VERSION)?0:1)'; then
+              echo "already=true" >> "$GITHUB_OUTPUT"
+              echo "ℹ️ Version $VERSION is already on the marketplace — nothing to publish."
+            else
+              echo "already=false" >> "$GITHUB_OUTPUT"
+              echo "🚀 Version $VERSION is new."
+            fi
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ Could not read the marketplace listing, assuming this is a first publish:"
+            cat "$RUNNER_TEMP/marketplace.err" || true
+          fi
+
+      - name: Verify VSCE_PAT
+        if: steps.check.outputs.already == 'false' && !inputs.dry_run
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VSCE_PAT:-}" ]; then
+            echo "::error::The VSCE_PAT secret is not configured. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          PUBLISHER="$(node -p "require('./package.json').publisher")"
+          npx vsce verify-pat "$PUBLISHER"
+          echo "✅ Token has publish rights for $PUBLISHER"
+
+      - name: Package extension
+        if: steps.check.outputs.already == 'false'
+        run: |
+          set -euo pipefail
+          npx vsce package --out "${{ steps.meta.outputs.vsix }}"
+          ls -lh "${{ steps.meta.outputs.vsix }}"
+
+      # --skip-duplicate is a second line of defence against a concurrent run.
+      - name: Publish to VS Code Marketplace
+        if: steps.check.outputs.already == 'false' && !inputs.dry_run
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish --packagePath "${{ steps.meta.outputs.vsix }}" --skip-duplicate
+
+      - name: Create and push tag
+        if: steps.check.outputs.already == 'false' && !inputs.dry_run && !startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.meta.outputs.tag }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "ℹ️ Tag $TAG already exists on origin."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "Midnight Breeze $TAG"
+            git push origin "$TAG"
+            echo "🏷️ Created tag $TAG"
+          fi
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.already == 'false' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.meta.outputs.tag }}"
+          VSIX="${{ steps.meta.outputs.vsix }}"
+          NOTES="$RUNNER_TEMP/release-notes.md"
+
+          # Pull this version's section out of the changelog.
+          awk -v header="### ${{ steps.meta.outputs.version }}" '
+            $0 == header { found = 1; next }
+            /^### / { if (found) exit }
+            found { print }
+          ' CHANGELOG.md > "$NOTES"
+
+          if [ ! -s "$NOTES" ]; then
+            echo "Midnight Breeze $TAG published to the VS Code Marketplace." > "$NOTES"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$VSIX" --clobber
+            echo "ℹ️ Release $TAG already existed, asset updated."
+          else
+            gh release create "$TAG" "$VSIX" --title "Midnight Breeze $TAG" --notes-file "$NOTES"
+            echo "📝 Created release $TAG"
+          fi
+
+      - name: Upload VSIX artifact
+        if: steps.check.outputs.already == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.vsix }}
+          path: ${{ steps.meta.outputs.vsix }}
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Midnight Breeze ${{ steps.meta.outputs.version }}"
+            echo ""
+            if [ "${{ steps.check.outputs.already }}" = "true" ]; then
+              echo "⏭️ Skipped — this version is already on the marketplace."
+              echo ""
+              echo "Bump \`version\` in \`package.json\` to publish a new release."
+            elif [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "🧪 Dry run — packaged and validated, nothing was published."
+            else
+              echo "✅ Published to the VS Code Marketplace."
+              echo ""
+              echo "- Tag: \`${{ steps.meta.outputs.tag }}\`"
+              echo "- Package: \`${{ steps.meta.outputs.vsix }}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
